@@ -1,0 +1,26 @@
+body {
+    margin: 0 auto;
+    margin-top: 20px;
+    width: 800px;
+    text-align: center;
+}
+
+#instruction-checks {
+    width: 600px;
+    text-align: left;
+}
+
+#slider {
+    width: 400px;
+}
+
+#left_image {
+	position: relative;
+	left: -50px
+	
+}
+
+#right_image {
+	position: relative;
+	left: 50px
+}
