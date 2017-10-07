@@ -11,14 +11,14 @@ optargs(newVals) = varargin(newVals); % now put these defaults into the valuesTo
 %% Compute cdf
 t = mint:10:maxt; % #### set t, time vector in msec (MIN : bin size : MAX)
 
-data = [[ones(numel(LL),1); 2 * ones(numel(LH), 1); 3 * ones(numel(HL), 1); 4 * ones(numel(HH), 1)],...
-        [HHacc; LHacc; HLacc; LLacc],...
-        [LL; LH; HL; HH]];
+data = [[ones(numel(HH),1); 2 * ones(numel(HL), 1); 3 * ones(numel(LH), 1); 4 * ones(numel(LL), 1)],...
+        [HHacc; HLacc; LHacc; LLacc],...
+        [HH; HL; LH; LL]];
 [S, data, acc, t, hi, lo] = computeSurvivors(data, 'kaplan', []);
 cdf = 1 - S;
 CIs = hi - lo;
 
-sic  = S(:,1) - S(:,2) - S(:,3) + S(:,4);
+sic  = S(:,4) - S(:,2) - S(:,3) + S(:,1);
 % sichi  = hi(:,1) - hi(:,2) - hi(:,3) + hi(:,4);
 % siclo  = lo(:,1) - lo(:,2) - lo(:,3) + lo(:,4);
 SICci = sqrt(nansum(CIs.^2, 2));

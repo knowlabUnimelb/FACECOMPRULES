@@ -1,7 +1,7 @@
 % Set up
 clear all
 clc
-close all
+% close all force hidden
 
 dataPrefix   = '2014_comprules'; % String at the beginning of data file
 datalocation = fullfile(pwd, 'rawdata'); % Location folder of datafiles
@@ -11,7 +11,7 @@ dataformat   = '%s_s%03d_con%d_ses%d.dat'; % Format for datafile name; first str
 
 dimensions = {'Top', 'Bottom'}; % Specify descriptive names for your dimensions
 
-si = 1; % which subject to analyse? [Must correspond to the entry in subjectNumber variable]
+si = 19; % which subject to analyse? [Must correspond to the entry in subjectNumber variable]
 
 % 103 and 208 omitted for high error rates
 subjectNumbers   = [101, 103, 105, 107, 109,...
@@ -25,11 +25,11 @@ conditionNumbers = [1, 1, 1, 1, 1,...
                     4, 4, 4, 4,...
                     5];
 sessions = {[2:3, 5:7, 9:10], 2:8, 2:8, 2:8, 2:8,...
-            2:8, 2:8, 2:8, 2:5, 2:8,...
+            2:8, 2:8, 2:8, 2:5, 3:8,...
             2:8, 2:8, 2:8, 2:8, 2:8,...
             2:8, [2,4:9], 3:9, 2:8,...
             2:3}; % You can set this to more than one session by stating: 2:5
-
+subjectCodes = {'UA1', 'omit', 'UA2', 'UA3', 'UA4', 'UM1', 'UM2', 'UM3', 'omit', 'UM4', 'IA1', 'IA2', 'IA3', 'IA4', 'IA5', 'IM1', 'IM2', 'IM3', 'IM4', 'pilot'};
 
 ploton = true; % Set to true to display plots
 runStats = false;
@@ -76,7 +76,6 @@ cutoffPercentiles = repmat([99.9], 1, numel(subjectNumbers)); % Throw out anythi
 % This is useful for getting rid of extremely long RTs if the P, for instance, took a phonecall or fell asleep
 
 idxTooLong = find(rdata(:,end) > prctile(rdata(:,strcmp(cols, 'rt')), cutoffPercentiles(si)));
-
 rdata(idxTooLong, :) = []; % Delete long RTs
 fprintf('Number of long RT trials removed = %d\n', numel(idxTooLong))
 condition = rdata(1, strcmp('con', cols));
@@ -169,33 +168,42 @@ cols = {'sub', 'con',   'ses', 'tri', 'itm', 'top', 'bot', 'rsp', 'cat', 'acc', 
 
 anovadata = trialdata(:, [find(strcmp('sub', cols)), find(strcmp('ses', cols)), find(strcmp('itm', cols)), find(strcmp('rt', cols))]);
 anovadata(:, 5) = double(ismember(anovadata(:,3), [1 2 3 4]));
-anovadata(ismember(anovadata(:,3), [1 3]), 5) = anovadata(ismember(anovadata(:,3), [1 3]), 5) + 1;
+anovadata(ismember(anovadata(:,3), [1 2]), 5) = anovadata(ismember(anovadata(:,3), [1 2]), 5) + 1;
 anovadata(:, 6) = double(ismember(anovadata(:,3), [1 2 3 4]));
-anovadata(ismember(anovadata(:,3), [1 2]), 6) = anovadata(ismember(anovadata(:,3), [1 2]), 6) + 1;
+anovadata(ismember(anovadata(:,3), [1 3]), 6) = anovadata(ismember(anovadata(:,3), [1 3]), 6) + 1;
 
 x = anovadata(ismember(anovadata(:,3), 1:4), [3 5 6 4]);
-targ = aggregate(x, [2 3], 4, [],1); mic = targ(1) - targ(2) - targ(3) + targ(4);
+targ = aggregate(x, [2 3], 4, [],1); 
+mic = targ(1) - targ(2) - targ(3) + targ(4);
 targstd = aggregate(x, [2 3], 4, @std,1); targcnt = aggregate(x, [2 3], 4, @count,1);
 targerr = targstd./sqrt(targcnt);
 
 
 %% Run ANOVA
 if runStats
-    [p, t, stats, terms] = anovan(x(:,4), {x(:,2), x(:,3)}, 'varnames', {'Level 1', 'Level 2'}, 'model', 'full', 'display', anovaTable);
+%     [p, t, stats, terms] = anovan(x(:,4), {x(:,2), x(:,3)}, 'varnames', dimensions, 'model', 'full', 'display', anovaTable);
     
     % Run sessions anova
     sessionX = anovadata(ismember(anovadata(:,3), 1:4), [2 3 5 6 4]);
     [anovap, t, stats, terms] = anovan(sessionX(:,5), {sessionX(:,1), sessionX(:,3), sessionX(:,4)},...
-        'varnames', {'Session', 'Level 1', 'Level 2'}, 'model', 'full', 'display', anovaTable);
+        'varnames', {'Session', dimensions{1}, dimensions{2}}, 'model', 'full', 'display', anovaTable);
     
     itemComparisons = [5 6; 7 8; 5 9; 6 9; 7 9; 8 9];
+    labels = {'', '', '', '',...
+        sprintf('E_{%s}', dimensions{1}),...
+        sprintf('I_{%s}', dimensions{1}),...
+        sprintf('E_{%s}', dimensions{2}),...
+        sprintf('I_{%s}', dimensions{2}),...
+        'R'};
     for icIdx = 1:size(itemComparisons, 1)
         item1 = anovadata(ismember(anovadata(:,3), itemComparisons(icIdx,1)), 4);
         item2 = anovadata(ismember(anovadata(:,3), itemComparisons(icIdx,2)), 4);
         [h, ttestp, ci, stats]= ttest2(item1, item2);
-        if strcmp(anovaTable, 'on')
-            fprintf('Contrast category comparison - item %d vs item %d: t(%d) = %6.2f, p = %3.3f\n',  itemComparisons(icIdx, 1), itemComparisons(icIdx, 2), stats.df, stats.tstat, ttestp);
-        end
+%         if strcmp(anovaTable, 'on')
+            fprintf('Contrast category comparison: %10s vs %10s: Mean Diff = %3.2f, t(%d) = %6.2f, p = %3.3f\n',...
+                labels{itemComparisons(icIdx, 1)}, labels{itemComparisons(icIdx, 2)},...
+                mean(item1)-mean(item2), stats.df, stats.tstat, ttestp);
+%         end
     end
 end
 
@@ -247,18 +255,20 @@ if ploton
     subplot(3,2,1)
     hold on
     e1 = errorbar(1:2, targ(1:2), targerr(1:2), '-k');
-    set(e1, 'LineWidth', 2)
+    set(e1, 'LineWidth', 1)
     e2 = errorbar(1:2, targ(3:4), targerr(3:4), '--k');
-    set(e2, 'LineWidth', 2)
+    set(e2, 'LineWidth', 1)
     
     h = plot(1:2, targ(1:2), '-ko', 1:2, targ(3:4), '--ko');
-    set(gca,'XLim', [.5 2.5], 'XTick', [1 2], 'XTickLabel', {'L', 'H'});
-    title('Target Category Mean RTs', 'FontSize', 14)
+%     set(gca,'XLim', [.5 2.5], 'XTick', [1 2], 'XTickLabel', {'L', 'H'});
+    set(gca,'XLim', [.5 2.5], 'XTick', [], 'YTick', []);
+%     title('Target Category Mean RTs', 'FontSize', 14)
+    title(sprintf('MIC = %4.2f', mic), 'FontSize', 14)
     
-    set(h(1), 'MarkerFaceColor', [0 0 0], 'LineWidth', 2, 'MarkerSize',10)
-    set(h(2), 'MarkerFaceColor', [1 1 1], 'LineWidth', 2, 'MarkerSize',10)
-    legend('Low (Bottom)', 'High (Bottom)', 'Location', 'NorthEast')
-    xlabel('Top', 'FontSize', 14)
+    set(h(1), 'MarkerFaceColor', [0 0 0], 'LineWidth', 1, 'MarkerSize',8)
+    set(h(2), 'MarkerFaceColor', [1 1 1], 'LineWidth', 1, 'MarkerSize',8)
+%     legend('Low (Bottom)', 'High (Bottom)', 'Location', 'NorthEast')
+%     xlabel('Top', 'FontSize', 14)
     box on
     
     %%
@@ -270,11 +280,11 @@ if ploton
     highYlim = lowYlim + ceil(max([max([targ; cont] + [targerr; conterr]) - lowYlim + 50, 600])/100) * 100;
     
     set(gca,'YLim', [lowYlim highYlim], 'FontSize', 12)
-    ylabel('Mean RT (ms)', 'FontSize', 14)
+%     ylabel('Mean RT (ms)', 'FontSize', 14)
     
     subplot(3,2,2)
     hold on
-    e3 = errorbar(1, cont(5), conterr(1)); set(e3, 'LineStyle', 'none', 'Color', [0 0 0]);
+    e3 = errorbar(1, cont(5), conterr(5)); set(e3, 'LineStyle', 'none', 'Color', [0 0 0]);
     set(e3, 'LineWidth', 2)
     e4 = errorbar(2:3, cont([2 1]), conterr([2 1]), '-k');
     set(e4, 'LineWidth', 2)
@@ -288,22 +298,24 @@ if ploton
     set(h2(2), 'MarkerFaceColor', [1 1 1], 'LineWidth', 2, 'MarkerSize',10)
     set(h2(3), 'MarkerFaceColor', [0 0 0], 'LineWidth', 2, 'MarkerSize',10)
     
-    legend(h2([2 3 1]), dimensions{2}, dimensions{1}, 'Redundant', 'Location', 'NorthWest')
+    legend(h2([2 3 1]), dimensions{1}, dimensions{2}, 'Redundant', 'Location', 'NorthWest')
     
     box on
-    set(gca,'YLim', [lowYlim highYlim],'FontSize', 12)
+%     set(gca,'YLim', [lowYlim highYlim],'FontSize', 12)
+    set(gca,'YLim', [600 1400],'FontSize', 12)
     xlabel('Interior-Exterior', 'FontSize', 14)
     ylabel('Mean RT (ms)', 'FontSize', 14)
-    title('Contrast Category Mean RTs', 'FontSize', 14)
+%     title('Contrast Category Mean RTs', 'FontSize', 14)
+    title(subjectCodes{si}, 'FontSize', 14)
 
     %% Plot Survivors
     subplot(3,2,3)
     hs = plot(tsic, tsf);
-    set(hs(1), 'Color', 'r', 'LineStyle', '-' , 'LineWidth', 2)
-    set(hs(2), 'Color', 'r', 'LineStyle', '--', 'LineWidth', 2)
-    set(hs(3), 'Color', 'b', 'LineStyle', '-' , 'LineWidth', 2)
-    set(hs(4), 'Color', 'b', 'LineStyle', '--', 'LineWidth', 2)
-    legend(hs, 'LL', 'LH', 'HL', 'HH') 
+    set(hs(4), 'Color', 'r', 'LineStyle', '-' , 'LineWidth', 2)
+    set(hs(3), 'Color', 'r', 'LineStyle', '--', 'LineWidth', 2)
+    set(hs(2), 'Color', 'b', 'LineStyle', '-' , 'LineWidth', 2)
+    set(hs(1), 'Color', 'b', 'LineStyle', '--', 'LineWidth', 2)
+    legend(hs, 'HH', 'HL', 'LH', 'LL') 
     xlabel('t', 'FontSize', 14)
     ylabel('P (T > t)', 'FontSize', 14)
     axis([mint maxt 0 1])
@@ -314,17 +326,19 @@ if ploton
     subplot(3,2,5)
     hsic = plot(tsic, sic); 
     hold on
-    set(hsic, 'Color', 'r', 'LineStyle', '-' , 'LineWidth', 2)
+    set(hsic, 'Color', 'k', 'LineStyle', '-' , 'LineWidth', 2)
     
-    hsicCI = plot(tsic, sichi, '--b', tsic, siclo, '--b');
+    hsicCI = plot(tsic, sichi, '--k', tsic, siclo, '--k');
     set(hsicCI, 'LineWidth', 1)
     
     xlabel('t', 'FontSize', 14)
     ylabel('SIC(t)', 'FontSize', 14)
     axis tight
-    l = line([mint maxt], [0 0]); set(l, 'Color', 'k')
-    set(gca,'FontSize', 14)
-    title(sprintf('MIC = %4.2f', MIC), 'FontSize', 14)
+    l = line([0 3000], [0 0]); set(l, 'Color', 'k')
+    set(gca,'FontSize', 14, 'XLim', [0 3000], 'YLim', [-.5 .25])
+%     title(sprintf('MIC = %4.2f', MIC), 'FontSize', 14) % Plot mic estimated by integrating censored SIC
+%     title(sprintf('MIC = %4.2f', mic), 'FontSize', 14)
+    title(subjectCodes{si});
     
     %% Plot conflict survivors
     subplot(3,2,4)
